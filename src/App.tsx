@@ -6,11 +6,13 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import Index from "./pages/Index";
 import BlogPage from "./pages/BlogPage";
+import BlogPostPage from "./pages/BlogPostPage";
 import AdminAuth from "./pages/admin/AdminAuth";
 import AdminLayout from "./pages/admin/AdminLayout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminContent from "./pages/admin/AdminContent";
 import AdminBlogs from "./pages/admin/AdminBlogs";
+import AdminPortfolio from "./pages/admin/AdminPortfolio";
 import AdminLeads from "./pages/admin/AdminLeads";
 import NotFound from "./pages/NotFound";
 
@@ -26,11 +28,13 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/blog" element={<BlogPage />} />
+            <Route path="/blog/:slug" element={<BlogPostPage />} />
             <Route path="/admin/auth" element={<AdminAuth />} />
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<AdminDashboard />} />
               <Route path="content" element={<AdminContent />} />
               <Route path="blogs" element={<AdminBlogs />} />
+              <Route path="portfolio" element={<AdminPortfolio />} />
               <Route path="leads" element={<AdminLeads />} />
             </Route>
             <Route path="*" element={<NotFound />} />
