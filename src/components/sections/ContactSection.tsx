@@ -1,6 +1,6 @@
 import { motion, useInView } from "framer-motion";
 import { useRef, useState } from "react";
-import { Send, MapPin, Phone, Mail, Clock } from "lucide-react";
+import { Send, MapPin, Phone, Mail, Clock, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,23 +11,23 @@ import { supabase } from "@/integrations/supabase/client";
 const contactInfo = [
   {
     icon: MapPin,
-    title: "Visit Our Studio",
-    details: ["123 Design Avenue, Suite 500", "New York, NY 10001"]
+    title: "Visit Us",
+    details: ["Jamshedpur, Jharkhand", "Kolkata, West Bengal"]
   },
   {
     icon: Phone,
     title: "Call Us",
-    details: ["+1 (234) 567-890", "+1 (234) 567-891"]
+    details: ["+91 7909041132"]
   },
   {
     icon: Mail,
     title: "Email Us",
-    details: ["hello@crossangle.com", "projects@crossangle.com"]
+    details: ["hello@crossangleinterior.com"]
   },
   {
     icon: Clock,
     title: "Working Hours",
-    details: ["Mon - Fri: 9:00 AM - 6:00 PM", "Sat: By Appointment"]
+    details: ["Mon - Sat: 9AM - 7PM", "WhatsApp Available 24/7"]
   }
 ];
 
@@ -37,7 +37,8 @@ export function ContactSection() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
-    name: "",
+    firstName: "",
+    lastName: "",
     email: "",
     phone: "",
     message: "",
@@ -49,11 +50,12 @@ export function ContactSection() {
     setIsSubmitting(true);
 
     try {
-      // Insert lead into database
+      const fullName = `${formData.firstName} ${formData.lastName}`.trim();
+      
       const { error: insertError } = await supabase
         .from('leads')
         .insert({
-          name: formData.name,
+          name: fullName,
           email: formData.email,
           phone: formData.phone,
           message: formData.message,
@@ -63,11 +65,10 @@ export function ContactSection() {
 
       if (insertError) throw insertError;
 
-      // Call edge function for AI response
       try {
         await supabase.functions.invoke('process-lead', {
           body: { 
-            name: formData.name, 
+            name: fullName, 
             email: formData.email,
             message: formData.message 
           }
@@ -82,7 +83,8 @@ export function ContactSection() {
       });
 
       setFormData({
-        name: "",
+        firstName: "",
+        lastName: "",
         email: "",
         phone: "",
         message: "",
@@ -103,6 +105,51 @@ export function ContactSection() {
   return (
     <section id="contact" className="py-24 md:py-32 bg-card relative" ref={ref}>
       <div className="container mx-auto px-4">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.8 }}
+          className="text-center max-w-3xl mx-auto mb-16"
+        >
+          <span className="text-primary text-sm tracking-widest uppercase font-medium">
+            Get In Touch
+          </span>
+          <h2 className="font-display text-4xl md:text-5xl font-bold mt-4 mb-6">
+            Ready to Transform <span className="text-primary">Your Space?</span>
+          </h2>
+          <p className="text-muted-foreground text-lg">
+            Get a free consultation and 3D design visualization.
+            <br />
+            <span className="text-foreground">No obligation. No hidden costs.</span>
+          </p>
+        </motion.div>
+
+        {/* Quick Action Buttons */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.6, delay: 0.1 }}
+          className="flex flex-wrap justify-center gap-4 mb-12"
+        >
+          <Button variant="goldOutline" size="lg" asChild>
+            <a href="tel:+917909041132">
+              <Phone className="w-4 h-4 mr-2" />
+              Call Now
+            </a>
+          </Button>
+          <Button variant="hero" size="lg" asChild>
+            <a 
+              href="https://wa.me/917909041132?text=Hi!%20I'm%20interested%20in%20your%20interior%20design%20services."
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <MessageCircle className="w-4 h-4 mr-2" />
+              WhatsApp Us
+            </a>
+          </Button>
+        </motion.div>
+
         <div className="grid lg:grid-cols-2 gap-16">
           {/* Contact Info */}
           <motion.div
@@ -110,39 +157,26 @@ export function ContactSection() {
             animate={isInView ? { opacity: 1, x: 0 } : {}}
             transition={{ duration: 0.8 }}
           >
-            <span className="text-primary text-sm tracking-widest uppercase font-medium">
-              Get In Touch
-            </span>
-            <h2 className="font-display text-4xl md:text-5xl font-bold mt-4 mb-6">
-              Let's Create <span className="text-gradient-gold">Together</span>
-            </h2>
-            <p className="text-muted-foreground text-lg mb-12 leading-relaxed">
-              Ready to transform your space? Reach out for a consultation 
-              and let's discuss how we can bring your vision to life.
-            </p>
-
-            <div className="grid sm:grid-cols-2 gap-8">
+            <div className="grid sm:grid-cols-2 gap-6">
               {contactInfo.map((info, index) => (
                 <motion.div
                   key={info.title}
                   initial={{ opacity: 0, y: 20 }}
                   animate={isInView ? { opacity: 1, y: 0 } : {}}
                   transition={{ duration: 0.5, delay: 0.2 + index * 0.1 }}
-                  className="flex gap-4"
+                  className="p-6 rounded-2xl bg-background border border-border"
                 >
-                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
                     <info.icon className="w-5 h-5 text-primary" />
                   </div>
-                  <div>
-                    <h4 className="font-medium text-foreground mb-1">
-                      {info.title}
-                    </h4>
-                    {info.details.map((detail, i) => (
-                      <p key={i} className="text-muted-foreground text-sm">
-                        {detail}
-                      </p>
-                    ))}
-                  </div>
+                  <h4 className="font-semibold text-foreground mb-2">
+                    {info.title}
+                  </h4>
+                  {info.details.map((detail, i) => (
+                    <p key={i} className="text-muted-foreground text-sm">
+                      {detail}
+                    </p>
+                  ))}
                 </motion.div>
               ))}
             </div>
@@ -154,64 +188,63 @@ export function ContactSection() {
             animate={isInView ? { opacity: 1, x: 0 } : {}}
             transition={{ duration: 0.8, delay: 0.2 }}
           >
-            <form onSubmit={handleSubmit} className="p-8 rounded-2xl bg-background border border-border">
-              <div className="grid gap-6">
+            <div className="p-8 rounded-2xl bg-background border border-border">
+              <h3 className="font-display text-xl font-semibold text-foreground mb-6">
+                Send Us a Message
+              </h3>
+              <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="name">Full Name</Label>
+                    <Label htmlFor="firstName">First Name</Label>
                     <Input
-                      id="name"
-                      placeholder="John Smith"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      id="firstName"
+                      placeholder="John"
+                      value={formData.firstName}
+                      onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                       required
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email Address</Label>
+                    <Label htmlFor="lastName">Last Name</Label>
                     <Input
-                      id="email"
-                      type="email"
-                      placeholder="john@example.com"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      id="lastName"
+                      placeholder="Doe"
+                      value={formData.lastName}
+                      onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                       required
                     />
-                  </div>
-                </div>
-
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Phone Number</Label>
-                    <Input
-                      id="phone"
-                      type="tel"
-                      placeholder="+1 (234) 567-890"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="category">Project Type</Label>
-                    <select
-                      id="category"
-                      value={formData.category}
-                      onChange={(e) => setFormData({ ...formData, category: e.target.value as "residential" | "commercial" | "other" })}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      <option value="residential">Residential</option>
-                      <option value="commercial">Commercial</option>
-                      <option value="other">Other</option>
-                    </select>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="message">Your Message</Label>
+                  <Label htmlFor="email">Email Address</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="john@example.com"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone Number</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="+91 98765 43210"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="message">Tell Us About Your Project</Label>
                   <Textarea
                     id="message"
-                    placeholder="Tell us about your project..."
-                    rows={5}
+                    placeholder="Describe your vision..."
+                    rows={4}
                     value={formData.message}
                     onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                     required
@@ -228,8 +261,8 @@ export function ContactSection() {
                     </>
                   )}
                 </Button>
-              </div>
-            </form>
+              </form>
+            </div>
           </motion.div>
         </div>
       </div>

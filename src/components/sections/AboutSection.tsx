@@ -1,7 +1,8 @@
-import { motion } from "framer-motion";
-import { useInView } from "framer-motion";
+import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
-import { Award, Users, Sparkles, Target } from "lucide-react";
+import { CheckCircle, Award, Users, Clock, HeartHandshake } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 
 interface AboutSectionProps {
   title?: string;
@@ -10,38 +11,22 @@ interface AboutSectionProps {
 }
 
 const features = [
-  {
-    icon: Award,
-    title: "Award Winning",
-    description: "Recognized globally for innovative and timeless design solutions"
-  },
-  {
-    icon: Users,
-    title: "Expert Team",
-    description: "Skilled designers, architects, and craftsmen working together"
-  },
-  {
-    icon: Sparkles,
-    title: "Bespoke Design",
-    description: "Every project is uniquely tailored to your vision and lifestyle"
-  },
-  {
-    icon: Target,
-    title: "Detail Oriented",
-    description: "Meticulous attention to every element, from concept to completion"
-  }
+  "Personalized Design Approach",
+  "Premium Material Selection",
+  "On-Time Project Delivery",
+  "Post-Completion Support",
 ];
 
 export function AboutSection({
-  title = "About Cross Angle Interior",
-  subtitle = "Two Decades of Design Excellence",
-  content = "Founded in 2005, Cross Angle Interior has established itself as a premier interior design firm. We specialize in creating bespoke residential and commercial spaces that reflect our clients' unique personalities and aspirations. Our philosophy centers on the perfect intersection of aesthetics and functionality."
+  title = "Creating Spaces That Inspire",
+  subtitle = "About Us",
+  content = "Welcome to Crossangle Interior, a premier interior design studio where creativity meets craftsmanship. Our team of passionate designers brings together diverse expertise in residential, commercial, and hospitality design."
 }: AboutSectionProps) {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
 
   return (
-    <section id="about" className="py-24 md:py-32 bg-card relative overflow-hidden" ref={ref}>
+    <section id="about" className="py-24 md:py-32 bg-background relative overflow-hidden" ref={ref}>
       {/* Decorative elements */}
       <div className="absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-primary/5 to-transparent" />
       
@@ -54,51 +39,105 @@ export function AboutSection({
             transition={{ duration: 0.8 }}
           >
             <span className="text-primary text-sm tracking-widest uppercase font-medium">
-              About Us
+              {subtitle}
             </span>
             <h2 className="font-display text-4xl md:text-5xl font-bold mt-4 mb-6 leading-tight">
               {title.split(' ').slice(0, -1).join(' ')}{' '}
-              <span className="text-gradient-gold">{title.split(' ').slice(-1)}</span>
+              <span className="text-primary">{title.split(' ').slice(-1)}</span>
             </h2>
-            <p className="text-lg text-primary/80 font-medium mb-4">
-              {subtitle}
-            </p>
-            <p className="text-muted-foreground leading-relaxed mb-8">
+            <p className="text-muted-foreground leading-relaxed mb-6">
               {content}
             </p>
-            <p className="text-muted-foreground leading-relaxed">
-              Our team of passionate designers brings together diverse expertise in 
-              architecture, art, and sustainable design. We believe that great spaces 
-              don't just look beautiful—they enhance the way you live and work.
+            <p className="text-muted-foreground leading-relaxed mb-8">
+              We believe that great design is about more than aesthetics—it's about creating 
+              environments that enhance how you live, work, and feel.
             </p>
+
+            {/* Features List */}
+            <div className="grid grid-cols-2 gap-4 mb-8">
+              {features.map((feature, index) => (
+                <motion.div
+                  key={feature}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={isInView ? { opacity: 1, x: 0 } : {}}
+                  transition={{ duration: 0.5, delay: 0.3 + index * 0.1 }}
+                  className="flex items-center gap-2"
+                >
+                  <CheckCircle className="w-5 h-5 text-primary flex-shrink-0" />
+                  <span className="text-foreground text-sm">{feature}</span>
+                </motion.div>
+              ))}
+            </div>
+
+            <Button variant="goldOutline" asChild>
+              <Link to="/#services">Learn More About Us</Link>
+            </Button>
           </motion.div>
 
-          {/* Features Grid */}
+          {/* Award Card */}
           <motion.div
             initial={{ opacity: 0, x: 50 }}
             animate={isInView ? { opacity: 1, x: 0 } : {}}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="grid grid-cols-1 sm:grid-cols-2 gap-6"
+            className="relative"
           >
-            {features.map((feature, index) => (
-              <motion.div
-                key={feature.title}
-                initial={{ opacity: 0, y: 20 }}
-                animate={isInView ? { opacity: 1, y: 0 } : {}}
-                transition={{ duration: 0.5, delay: 0.3 + index * 0.1 }}
-                className="p-6 rounded-2xl bg-background border border-border hover:border-primary/30 transition-all duration-300 group"
-              >
-                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors duration-300">
-                  <feature.icon className="w-6 h-6 text-primary" />
+            <div className="p-8 rounded-2xl bg-card border border-border">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+                  <Award className="w-8 h-8 text-primary" />
                 </div>
-                <h3 className="font-display text-lg font-semibold mb-2 text-foreground">
-                  {feature.title}
-                </h3>
-                <p className="text-muted-foreground text-sm leading-relaxed">
-                  {feature.description}
-                </p>
-              </motion.div>
-            ))}
+                <div>
+                  <h3 className="font-display text-xl font-semibold text-foreground">
+                    Award-Winning Design
+                  </h3>
+                  <p className="text-muted-foreground text-sm">
+                    Recognized for excellence in interior design across Jharkhand and Kolkata
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div className="text-center p-4 rounded-xl bg-background">
+                  <span className="text-3xl font-display font-bold text-primary">25+</span>
+                  <p className="text-sm text-muted-foreground mt-1">Awards Won</p>
+                </div>
+                <div className="text-center p-4 rounded-xl bg-background">
+                  <span className="text-3xl font-display font-bold text-primary">Certified</span>
+                  <p className="text-sm text-muted-foreground mt-1">Design Experts</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Floating cards */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={isInView ? { opacity: 1, scale: 1 } : {}}
+              transition={{ duration: 0.6, delay: 0.6 }}
+              className="absolute -bottom-6 -left-6 p-4 rounded-xl bg-primary text-primary-foreground shadow-lg"
+            >
+              <div className="flex items-center gap-3">
+                <Users className="w-8 h-8" />
+                <div>
+                  <span className="text-2xl font-bold">15+</span>
+                  <p className="text-xs opacity-80">Expert Designers</p>
+                </div>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={isInView ? { opacity: 1, scale: 1 } : {}}
+              transition={{ duration: 0.6, delay: 0.8 }}
+              className="absolute -top-6 -right-6 p-4 rounded-xl bg-card border border-border shadow-lg"
+            >
+              <div className="flex items-center gap-3">
+                <HeartHandshake className="w-8 h-8 text-primary" />
+                <div>
+                  <span className="text-2xl font-bold text-foreground">100%</span>
+                  <p className="text-xs text-muted-foreground">Client Satisfaction</p>
+                </div>
+              </div>
+            </motion.div>
           </motion.div>
         </div>
       </div>
