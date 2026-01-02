@@ -1,7 +1,8 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { ArrowRight, Play } from "lucide-react";
+import { ArrowRight, Play, Sparkles, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import heroImage from "@/assets/hero-interior.jpg";
 
 interface HeroSectionProps {
   title?: string;
@@ -11,42 +12,37 @@ interface HeroSectionProps {
 }
 
 export function HeroSection({ 
-  title = "Crafting Spaces That Inspire",
-  subtitle = "Where Vision Meets Elegance",
-  content = "At Cross Angle Interior, we transform ordinary spaces into extraordinary experiences. Our award-winning design team brings your vision to life with meticulous attention to detail and uncompromising quality.",
+  title = "Elevate Your Space Into Luxury",
+  subtitle = "Premier Interior Design Studio",
+  content = "Transforming your vision into exquisite living spaces with innovative and personalized interior design solutions.",
   imageUrl
 }: HeroSectionProps) {
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-      {/* Background gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-secondary/20" />
-      
-      {/* Decorative elements */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-primary/3 rounded-full blur-3xl" />
-      
-      {/* Grid pattern overlay */}
-      <div 
-        className="absolute inset-0 opacity-[0.02]"
-        style={{
-          backgroundImage: `linear-gradient(to right, hsl(var(--foreground)) 1px, transparent 1px),
-                           linear-gradient(to bottom, hsl(var(--foreground)) 1px, transparent 1px)`,
-          backgroundSize: '80px 80px'
-        }}
-      />
+    <section className="relative min-h-screen flex items-center overflow-hidden">
+      {/* Background Image */}
+      <div className="absolute inset-0">
+        <img 
+          src={imageUrl || heroImage} 
+          alt="Luxurious modern living room interior design"
+          className="w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/70 to-transparent" />
+      </div>
 
       <div className="container mx-auto px-4 pt-24 pb-16 relative z-10">
-        <div className="max-w-4xl mx-auto text-center">
+        <div className="max-w-2xl">
           {/* Badge */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="inline-flex items-center px-4 py-1.5 rounded-full border border-primary/30 bg-primary/5 mb-8"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-primary/30 bg-primary/10 mb-8"
           >
-            <span className="text-primary text-sm tracking-wide">
+            <Sparkles className="w-4 h-4 text-primary" />
+            <span className="text-primary text-sm font-medium tracking-wide uppercase">
               {subtitle}
             </span>
+            <Sparkles className="w-4 h-4 text-primary" />
           </motion.div>
 
           {/* Main heading */}
@@ -54,10 +50,11 @@ export function HeroSection({
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="font-display text-5xl md:text-6xl lg:text-7xl font-bold leading-tight mb-8"
+            className="font-display text-5xl md:text-6xl lg:text-7xl font-bold leading-tight mb-6"
           >
-            <span className="text-foreground">{title.split(' ').slice(0, -1).join(' ')}</span>{' '}
-            <span className="text-gradient-gold">{title.split(' ').slice(-1)}</span>
+            <span className="text-foreground">Elevate Your Space</span>
+            <br />
+            <span className="text-primary">Into Luxury</span>
           </motion.h1>
 
           {/* Description */}
@@ -65,7 +62,7 @@ export function HeroSection({
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.4 }}
-            className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-12 leading-relaxed"
+            className="text-lg md:text-xl text-muted-foreground max-w-xl mb-10 leading-relaxed"
           >
             {content}
           </motion.p>
@@ -75,44 +72,46 @@ export function HeroSection({
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.6 }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-4"
+            className="flex flex-col sm:flex-row items-start gap-4 mb-12"
           >
-            <Button variant="hero" asChild>
+            <Button variant="hero" size="lg" asChild>
               <Link to="/#contact">
                 Start Your Project
                 <ArrowRight size={18} className="ml-2" />
               </Link>
             </Button>
-            <Button variant="heroOutline" asChild>
+            <Button variant="heroOutline" size="lg" asChild>
               <Link to="/#portfolio">
                 <Play size={18} className="mr-2" />
-                View Our Work
+                Watch Showreel
               </Link>
             </Button>
           </motion.div>
 
-          {/* Stats */}
+          {/* Social Proof */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.8 }}
-            className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12"
+            className="flex items-center gap-4"
           >
-            {[
-              { value: "20+", label: "Years Experience" },
-              { value: "500+", label: "Projects Completed" },
-              { value: "50+", label: "Design Awards" },
-              { value: "98%", label: "Client Satisfaction" },
-            ].map((stat, index) => (
-              <div key={index} className="text-center">
-                <div className="font-display text-3xl md:text-4xl font-bold text-gradient-gold mb-2">
-                  {stat.value}
+            <div className="flex -space-x-2">
+              {[1, 2, 3].map((i) => (
+                <div 
+                  key={i}
+                  className="w-10 h-10 rounded-full bg-secondary border-2 border-background flex items-center justify-center"
+                >
+                  <Star className="w-4 h-4 text-primary" fill="currentColor" />
                 </div>
-                <div className="text-muted-foreground text-sm tracking-wide">
-                  {stat.label}
-                </div>
+              ))}
+              <div className="w-10 h-10 rounded-full bg-primary border-2 border-background flex items-center justify-center text-primary-foreground text-xs font-bold">
+                99+
               </div>
-            ))}
+            </div>
+            <div>
+              <p className="font-semibold text-foreground">500+ Happy Clients</p>
+              <p className="text-sm text-muted-foreground">Trusted by luxury homeowners worldwide</p>
+            </div>
           </motion.div>
         </div>
       </div>
@@ -122,12 +121,15 @@ export function HeroSection({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 1.2 }}
-        className="absolute bottom-8 left-1/2 -translate-x-1/2"
+        className="absolute bottom-8 left-1/2 -translate-x-1/2 text-center"
       >
+        <span className="text-xs text-muted-foreground tracking-widest uppercase mb-2 block">
+          Discover More
+        </span>
         <motion.div
           animate={{ y: [0, 10, 0] }}
           transition={{ repeat: Infinity, duration: 1.5 }}
-          className="w-6 h-10 rounded-full border-2 border-muted-foreground/30 flex items-start justify-center p-2"
+          className="w-6 h-10 rounded-full border-2 border-primary/50 flex items-start justify-center p-2 mx-auto"
         >
           <motion.div
             animate={{ height: ["20%", "50%", "20%"] }}
@@ -135,6 +137,34 @@ export function HeroSection({
             className="w-1 bg-primary rounded-full"
           />
         </motion.div>
+      </motion.div>
+
+      {/* Stats Bar */}
+      <motion.div
+        initial={{ opacity: 0, y: 50 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, delay: 1 }}
+        className="absolute bottom-0 left-0 right-0 bg-card/80 backdrop-blur-md border-t border-border"
+      >
+        <div className="container mx-auto px-4 py-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-12">
+            {[
+              { value: "15+", label: "Years Experience" },
+              { value: "500+", label: "Happy Clients" },
+              { value: "1000+", label: "Projects Completed" },
+              { value: "25+", label: "Design Awards" },
+            ].map((stat, index) => (
+              <div key={index} className="text-center">
+                <div className="font-display text-2xl md:text-3xl font-bold text-primary mb-1">
+                  {stat.value}
+                </div>
+                <div className="text-muted-foreground text-sm">
+                  {stat.label}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </motion.div>
     </section>
   );
