@@ -18,12 +18,12 @@ import { supabase } from "@/integrations/supabase/client";
 import type { User } from "@supabase/supabase-js";
 
 const navItems = [
-  { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
-  { name: "Site Content", href: "/admin/content", icon: Edit3 },
-  { name: "Blog Posts", href: "/admin/blogs", icon: FileText },
-  { name: "Portfolio", href: "/admin/portfolio", icon: Image },
-  { name: "Leads", href: "/admin/leads", icon: Users },
-  { name: "Settings", href: "/admin/settings", icon: Settings },
+  { name: "Dashboard", href: "/admin", icon: LayoutDashboard, roles: ["admin", "editor"] },
+  { name: "Site Content", href: "/admin/content", icon: Edit3, roles: ["admin", "editor"] },
+  { name: "Blog Posts", href: "/admin/blogs", icon: FileText, roles: ["admin", "editor"] },
+  { name: "Portfolio", href: "/admin/portfolio", icon: Image, roles: ["admin", "editor"] },
+  { name: "Leads", href: "/admin/leads", icon: Users, roles: ["admin"] },
+  { name: "Settings", href: "/admin/settings", icon: Settings, roles: ["admin", "editor"] },
 ];
 
 const AdminLayout = () => {
@@ -111,25 +111,27 @@ const AdminLayout = () => {
 
           {/* Navigation */}
           <nav className="flex-1 p-4 space-y-1">
-            {navItems.map((item) => {
-              const isActive = location.pathname === item.href;
-              return (
-                <Link
-                  key={item.name}
-                  to={item.href}
-                  onClick={() => setSidebarOpen(false)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-                    isActive
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                  }`}
-                >
-                  <item.icon size={18} />
-                  <span className="font-medium">{item.name}</span>
-                  {isActive && <ChevronRight size={16} className="ml-auto" />}
-                </Link>
-              );
-            })}
+            {navItems
+              .filter((item) => item.roles.includes(userRole as string))
+              .map((item) => {
+                const isActive = location.pathname === item.href;
+                return (
+                  <Link
+                    key={item.name}
+                    to={item.href}
+                    onClick={() => setSidebarOpen(false)}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                      isActive
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                    }`}
+                  >
+                    <item.icon size={18} />
+                    <span className="font-medium">{item.name}</span>
+                    {isActive && <ChevronRight size={16} className="ml-auto" />}
+                  </Link>
+                );
+              })}
           </nav>
 
           {/* User & Logout */}
