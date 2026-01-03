@@ -67,11 +67,28 @@ const AdminAuth = () => {
 
       if (error) throw error;
 
-      const { data: roleData, error: roleError } = await supabase
+      let { data: roleData, error: roleError } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', data.user.id)
-        .single();
+        .maybeSingle();
+
+      // Setup helper: if no role yet and initial signup is enabled, try to self-assign first admin
+      if ((!roleData || roleError) && ALLOW_ADMIN_SIGNUP) {
+        const { error: assignError } = await supabase.functions.invoke("assign-first-admin", {
+          body: { user_id: data.user.id },
+        });
+
+        if (!assignError) {
+          const retry = await supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', data.user.id)
+            .maybeSingle();
+          roleData = retry.data;
+          roleError = retry.error;
+        }
+      }
 
       if (roleError || !roleData) {
         await supabase.auth.signOut();
@@ -134,16 +151,24 @@ const AdminAuth = () => {
       if (error) throw error;
 
       if (data.user) {
-        // Assign admin role to the new user
-        const { error: roleError } = await supabase
-          .from('user_roles')
-          .insert({ user_id: data.user.id, role: 'admin' });
+        // Ensure we have an authenticated session (required to call backend functions)
+        if (!data.session) {
+          const { error: signInError } = await supabase.auth.signInWithPassword({
+            email: email.trim(),
+            password,
+          });
+          if (signInError) throw signInError;
+        }
 
-        if (roleError) {
-          console.error("Failed to assign admin role:", roleError);
+        // Assign admin role via backend function (bypasses RLS safely for first admin setup)
+        const { error: assignError } = await supabase.functions.invoke("assign-first-admin", {
+          body: { user_id: data.user.id },
+        });
+
+        if (assignError) {
           toast({
             title: "Account created",
-            description: "Account created but role assignment failed. Contact support.",
+            description: "Account created but role assignment failed. Please try signing in once, then retry admin setup.",
             variant: "destructive",
           });
           return;
