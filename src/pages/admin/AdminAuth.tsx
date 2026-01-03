@@ -1,24 +1,28 @@
 import { useState, useEffect } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mail, Lock, Loader2, Eye, EyeOff, ArrowLeft } from "lucide-react";
+import { Mail, Lock, Loader2, Eye, EyeOff, ArrowLeft, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { loginSchema, forgotPasswordSchema } from "@/lib/auth-validation";
+import { loginSchema, forgotPasswordSchema, signupSchema } from "@/lib/auth-validation";
 import type { User } from "@supabase/supabase-js";
+
+// TEMPORARY: Set to false after creating first admin account
+const ALLOW_ADMIN_SIGNUP = true;
 
 const AdminAuth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [user, setUser] = useState<User | null>(null);
-  const [view, setView] = useState<"login" | "forgot">("login");
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [view, setView] = useState<"login" | "forgot" | "signup">("login");
+  const [errors, setErrors] = useState<{ email?: string; password?: string; confirmPassword?: string }>({});
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -81,10 +85,83 @@ const AdminAuth = () => {
 
       navigate("/admin");
     } catch (error: any) {
-      // Generic error message - never expose specifics
       toast({
         title: "Login failed",
         description: "Invalid credentials. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrors({});
+
+    if (!ALLOW_ADMIN_SIGNUP) {
+      toast({
+        title: "Signup disabled",
+        description: "Admin signup is currently disabled.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const validation = signupSchema.safeParse({ email, password, confirmPassword });
+    if (!validation.success) {
+      const fieldErrors: { email?: string; password?: string; confirmPassword?: string } = {};
+      validation.error.errors.forEach((err) => {
+        if (err.path[0] === "email") fieldErrors.email = err.message;
+        if (err.path[0] === "password") fieldErrors.password = err.message;
+        if (err.path[0] === "confirmPassword") fieldErrors.confirmPassword = err.message;
+      });
+      setErrors(fieldErrors);
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/admin/auth`,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        // Assign admin role to the new user
+        const { error: roleError } = await supabase
+          .from('user_roles')
+          .insert({ user_id: data.user.id, role: 'admin' });
+
+        if (roleError) {
+          console.error("Failed to assign admin role:", roleError);
+          toast({
+            title: "Account created",
+            description: "Account created but role assignment failed. Contact support.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        toast({
+          title: "Admin account created!",
+          description: "You can now sign in with your credentials.",
+        });
+
+        setView("login");
+        setPassword("");
+        setConfirmPassword("");
+      }
+    } catch (error: any) {
+      toast({
+        title: "Signup failed",
+        description: error.message || "Could not create account. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -121,7 +198,6 @@ const AdminAuth = () => {
       setView("login");
       setEmail("");
     } catch (error: any) {
-      // Generic message - don't reveal if email exists
       toast({
         title: "Check your email",
         description: "If an account exists, you'll receive a password reset link.",
@@ -129,6 +205,13 @@ const AdminAuth = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const resetForm = () => {
+    setEmail("");
+    setPassword("");
+    setConfirmPassword("");
+    setErrors({});
   };
 
   if (isCheckingAuth) {
@@ -156,13 +239,15 @@ const AdminAuth = () => {
             Cross Angle
           </h1>
           <p className="text-muted-foreground">
-            {view === "login" ? "Admin Panel Login" : "Reset Your Password"}
+            {view === "login" && "Admin Panel Login"}
+            {view === "forgot" && "Reset Your Password"}
+            {view === "signup" && "Create Admin Account"}
           </p>
         </div>
 
         <div className="p-8 rounded-2xl bg-card border border-border">
           <AnimatePresence mode="wait">
-            {view === "login" ? (
+            {view === "login" && (
               <motion.form
                 key="login"
                 initial={{ opacity: 0, x: -20 }}
@@ -228,18 +313,142 @@ const AdminAuth = () => {
                   )}
                 </Button>
 
+                <div className="flex flex-col gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setView("forgot");
+                      resetForm();
+                    }}
+                    className="w-full text-center text-sm text-muted-foreground hover:text-primary transition-colors"
+                  >
+                    Forgot password?
+                  </button>
+
+                  {ALLOW_ADMIN_SIGNUP && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setView("signup");
+                        resetForm();
+                      }}
+                      className="w-full text-center text-sm text-primary hover:underline transition-colors flex items-center justify-center gap-1"
+                    >
+                      <UserPlus size={14} />
+                      Create first admin account
+                    </button>
+                  )}
+                </div>
+              </motion.form>
+            )}
+
+            {view === "signup" && ALLOW_ADMIN_SIGNUP && (
+              <motion.form
+                key="signup"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                onSubmit={handleSignup}
+                className="space-y-6"
+              >
                 <button
                   type="button"
                   onClick={() => {
-                    setView("forgot");
-                    setErrors({});
+                    setView("login");
+                    resetForm();
                   }}
-                  className="w-full text-center text-sm text-muted-foreground hover:text-primary transition-colors"
+                  className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
                 >
-                  Forgot password?
+                  <ArrowLeft size={16} />
+                  Back to login
                 </button>
+
+                <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 text-sm text-primary">
+                  <strong>⚠️ Temporary Setup:</strong> After creating your admin account, set <code>ALLOW_ADMIN_SIGNUP = false</code> in AdminAuth.tsx
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="signup-email">Email Address</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+                    <Input
+                      id="signup-email"
+                      type="email"
+                      placeholder="admin@crossangle.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className={`pl-10 ${errors.email ? "border-destructive" : ""}`}
+                      autoFocus
+                      required
+                    />
+                  </div>
+                  {errors.email && (
+                    <p className="text-sm text-destructive">{errors.email}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="signup-password">Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+                    <Input
+                      id="signup-password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className={`pl-10 pr-10 ${errors.password ? "border-destructive" : ""}`}
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                  {errors.password && (
+                    <p className="text-sm text-destructive">{errors.password}</p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Min 8 characters, with at least one letter and one number
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-password">Confirm Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+                    <Input
+                      id="confirm-password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="••••••••"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className={`pl-10 ${errors.confirmPassword ? "border-destructive" : ""}`}
+                      required
+                    />
+                  </div>
+                  {errors.confirmPassword && (
+                    <p className="text-sm text-destructive">{errors.confirmPassword}</p>
+                  )}
+                </div>
+
+                <Button type="submit" variant="gold" className="w-full" disabled={isLoading}>
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      Creating account...
+                    </>
+                  ) : (
+                    "Create Admin Account"
+                  )}
+                </Button>
               </motion.form>
-            ) : (
+            )}
+
+            {view === "forgot" && (
               <motion.form
                 key="forgot"
                 initial={{ opacity: 0, x: 20 }}
@@ -252,7 +461,7 @@ const AdminAuth = () => {
                   type="button"
                   onClick={() => {
                     setView("login");
-                    setErrors({});
+                    resetForm();
                   }}
                   className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
                 >
