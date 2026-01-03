@@ -6,6 +6,62 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Simple in-memory rate limiting (per function instance)
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
+const RATE_LIMIT_MAX_REQUESTS = 5; // Max 5 requests per minute per email
+
+function isRateLimited(email: string): boolean {
+  const now = Date.now();
+  const key = email.toLowerCase().trim();
+  const record = rateLimitMap.get(key);
+
+  if (!record || now > record.resetTime) {
+    rateLimitMap.set(key, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
+    return false;
+  }
+
+  if (record.count >= RATE_LIMIT_MAX_REQUESTS) {
+    return true;
+  }
+
+  record.count++;
+  return false;
+}
+
+// Input validation functions
+function isValidEmail(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email) && email.length <= 255;
+}
+
+function isValidName(name: string): boolean {
+  return typeof name === 'string' && name.trim().length > 0 && name.length <= 100;
+}
+
+function isValidPhone(phone: string | undefined): boolean {
+  if (!phone) return true; // Phone is optional
+  // Allow common phone formats: digits, spaces, dashes, parentheses, plus sign
+  const phoneRegex = /^[+]?[\d\s\-()]{7,20}$/;
+  return phoneRegex.test(phone);
+}
+
+function isValidMessage(message: string | undefined): boolean {
+  if (!message) return true; // Message can be empty
+  return message.length <= 5000; // Max 5000 characters
+}
+
+function isValidCategory(category: string | undefined): boolean {
+  if (!category) return true;
+  return ['residential', 'commercial', 'other'].includes(category);
+}
+
+function sanitizeString(str: string | undefined): string {
+  if (!str) return '';
+  // Remove any potential script tags and trim
+  return str.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '').trim();
+}
+
 async function sendWhatsAppNotification(lead: { name: string; email: string; phone?: string; message?: string }) {
   const accountSid = Deno.env.get("TWILIO_ACCOUNT_SID");
   const authToken = Deno.env.get("TWILIO_AUTH_TOKEN");
@@ -84,14 +140,92 @@ serve(async (req) => {
   }
 
   try {
-    const { name, email, phone, message, category } = await req.json();
+    let body;
+    try {
+      body = await req.json();
+    } catch {
+      console.error("Invalid JSON in request body");
+      return new Response(JSON.stringify({ error: "Invalid JSON" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { name, email, phone, message, category } = body;
+
+    // Validate required fields
+    if (!email || !isValidEmail(email)) {
+      console.error("Invalid email provided:", email);
+      return new Response(JSON.stringify({ error: "Invalid email address" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!name || !isValidName(name)) {
+      console.error("Invalid name provided");
+      return new Response(JSON.stringify({ error: "Name is required and must be under 100 characters" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!isValidPhone(phone)) {
+      console.error("Invalid phone format");
+      return new Response(JSON.stringify({ error: "Invalid phone number format" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!isValidMessage(message)) {
+      console.error("Message too long");
+      return new Response(JSON.stringify({ error: "Message must be under 5000 characters" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!isValidCategory(category)) {
+      console.error("Invalid category");
+      return new Response(JSON.stringify({ error: "Invalid category" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Rate limiting check
+    if (isRateLimited(email)) {
+      console.warn("Rate limit exceeded for email:", email);
+      return new Response(JSON.stringify({ error: "Too many requests. Please try again later." }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Sanitize inputs
+    const sanitizedName = sanitizeString(name);
+    const sanitizedMessage = sanitizeString(message);
+    const sanitizedPhone = sanitizeString(phone);
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
     // Send WhatsApp notification
-    await sendWhatsAppNotification({ name, email, phone, message });
+    await sendWhatsAppNotification({ 
+      name: sanitizedName, 
+      email, 
+      phone: sanitizedPhone, 
+      message: sanitizedMessage 
+    });
 
     // Sync to Google Sheets
-    await syncToGoogleSheets({ name, email, phone, message, category });
+    await syncToGoogleSheets({ 
+      name: sanitizedName, 
+      email, 
+      phone: sanitizedPhone, 
+      message: sanitizedMessage, 
+      category 
+    });
 
     if (!LOVABLE_API_KEY) {
       console.log("LOVABLE_API_KEY not configured, skipping AI response");
@@ -116,7 +250,7 @@ serve(async (req) => {
           },
           {
             role: "user",
-            content: `New inquiry from ${name} (${email}): "${message}"`
+            content: `New inquiry from ${sanitizedName} (${email}): "${sanitizedMessage}"`
           }
         ],
       }),

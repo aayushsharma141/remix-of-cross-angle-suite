@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { validateContactForm } from "@/lib/validation";
 
 const contactInfo = [
   {
@@ -36,6 +37,7 @@ export function ContactSection() {
   const isInView = useInView(ref, { once: true, margin: "-100px" });
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -47,19 +49,36 @@ export function ContactSection() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormErrors({});
+    
+    // Validate form data
+    const validation = validateContactForm(formData);
+    
+    if (!validation.success) {
+      const errors = 'errors' in validation ? validation.errors : {};
+      setFormErrors(errors);
+      toast({
+        title: "Please fix the errors",
+        description: "Some fields have invalid values.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      const fullName = `${formData.firstName} ${formData.lastName}`.trim();
+      const { data: validatedData } = validation;
+      const fullName = `${validatedData.firstName} ${validatedData.lastName}`.trim();
       
       const { error: insertError } = await supabase
         .from('leads')
         .insert({
           name: fullName,
-          email: formData.email,
-          phone: formData.phone,
-          message: formData.message,
-          category: formData.category,
+          email: validatedData.email,
+          phone: validatedData.phone || null,
+          message: validatedData.message,
+          category: validatedData.category,
           source: 'website'
         });
 
@@ -69,8 +88,10 @@ export function ContactSection() {
         await supabase.functions.invoke('process-lead', {
           body: { 
             name: fullName, 
-            email: formData.email,
-            message: formData.message 
+            email: validatedData.email,
+            phone: validatedData.phone,
+            message: validatedData.message,
+            category: validatedData.category
           }
         });
       } catch (aiError) {
@@ -201,8 +222,13 @@ export function ContactSection() {
                       placeholder="John"
                       value={formData.firstName}
                       onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                      maxLength={50}
+                      className={formErrors.firstName ? "border-destructive" : ""}
                       required
                     />
+                    {formErrors.firstName && (
+                      <p className="text-destructive text-xs">{formErrors.firstName}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="lastName">Last Name</Label>
@@ -211,8 +237,13 @@ export function ContactSection() {
                       placeholder="Doe"
                       value={formData.lastName}
                       onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                      maxLength={50}
+                      className={formErrors.lastName ? "border-destructive" : ""}
                       required
                     />
+                    {formErrors.lastName && (
+                      <p className="text-destructive text-xs">{formErrors.lastName}</p>
+                    )}
                   </div>
                 </div>
 
@@ -224,8 +255,13 @@ export function ContactSection() {
                     placeholder="john@example.com"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    maxLength={255}
+                    className={formErrors.email ? "border-destructive" : ""}
                     required
                   />
+                  {formErrors.email && (
+                    <p className="text-destructive text-xs">{formErrors.email}</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -236,7 +272,12 @@ export function ContactSection() {
                     placeholder="+91 98765 43210"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    maxLength={20}
+                    className={formErrors.phone ? "border-destructive" : ""}
                   />
+                  {formErrors.phone && (
+                    <p className="text-destructive text-xs">{formErrors.phone}</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -247,8 +288,13 @@ export function ContactSection() {
                     rows={4}
                     value={formData.message}
                     onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                    maxLength={5000}
+                    className={formErrors.message ? "border-destructive" : ""}
                     required
                   />
+                  {formErrors.message && (
+                    <p className="text-destructive text-xs">{formErrors.message}</p>
+                  )}
                 </div>
 
                 <Button type="submit" variant="gold" size="lg" disabled={isSubmitting} className="w-full">
