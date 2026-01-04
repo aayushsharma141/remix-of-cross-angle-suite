@@ -1,9 +1,33 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+// Get allowed origins from environment or use defaults
+const getAllowedOrigins = (): string[] => {
+  const envOrigins = Deno.env.get("ALLOWED_ORIGINS");
+  if (envOrigins) {
+    return envOrigins.split(",").map(o => o.trim());
+  }
+  return [];
+};
+
+const getCorsHeaders = (req: Request): Record<string, string> => {
+  const origin = req.headers.get("origin") || "";
+  const allowedOrigins = getAllowedOrigins();
+  
+  // Check if origin is allowed:
+  // - Lovable preview domains (*.lovable.app)
+  // - localhost for development
+  // - Explicitly allowed origins from env
+  const isAllowed = !origin || 
+    origin.endsWith(".lovable.app") || 
+    origin.includes("localhost") ||
+    origin.includes("127.0.0.1") ||
+    allowedOrigins.some(allowed => origin === allowed);
+  
+  return {
+    "Access-Control-Allow-Origin": isAllowed ? (origin || "*") : "",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  };
 };
 
 // Simple in-memory rate limiting (per function instance)
@@ -135,6 +159,8 @@ async function syncToGoogleSheets(lead: { name: string; email: string; phone?: s
 }
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+  
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }

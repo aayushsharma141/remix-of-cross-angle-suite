@@ -10,9 +10,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { loginSchema, forgotPasswordSchema, signupSchema } from "@/lib/auth-validation";
 import type { User } from "@supabase/supabase-js";
 
-// TEMPORARY: Set to false after creating first admin account
-const ALLOW_ADMIN_SIGNUP = true;
-
 const AdminAuth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -23,8 +20,31 @@ const AdminAuth = () => {
   const [user, setUser] = useState<User | null>(null);
   const [view, setView] = useState<"login" | "forgot" | "signup">("login");
   const [errors, setErrors] = useState<{ email?: string; password?: string; confirmPassword?: string }>({});
+  const [signupEnabled, setSignupEnabled] = useState(false);
+  const [checkingSignup, setCheckingSignup] = useState(true);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  // Check if signup is enabled (no admins exist) on mount
+  useEffect(() => {
+    const checkSignupStatus = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("assign-first-admin", {
+          body: { check_signup_enabled: true },
+        });
+        
+        if (!error && data?.signup_enabled) {
+          setSignupEnabled(true);
+        }
+      } catch (err) {
+        console.error("Error checking signup status:", err);
+      } finally {
+        setCheckingSignup(false);
+      }
+    };
+    
+    checkSignupStatus();
+  }, []);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -73,8 +93,8 @@ const AdminAuth = () => {
         .eq('user_id', data.user.id)
         .maybeSingle();
 
-      // Setup helper: if no role yet and initial signup is enabled, try to self-assign first admin
-      if ((!roleData || roleError) && ALLOW_ADMIN_SIGNUP) {
+      // Setup helper: if no role yet and signup is enabled, try to self-assign first admin
+      if ((!roleData || roleError) && signupEnabled) {
         const { error: assignError } = await supabase.functions.invoke("assign-first-admin", {
           body: { user_id: data.user.id },
         });
@@ -87,6 +107,8 @@ const AdminAuth = () => {
             .maybeSingle();
           roleData = retry.data;
           roleError = retry.error;
+          // Signup no longer available after first admin
+          setSignupEnabled(false);
         }
       }
 
@@ -116,10 +138,10 @@ const AdminAuth = () => {
     e.preventDefault();
     setErrors({});
 
-    if (!ALLOW_ADMIN_SIGNUP) {
+    if (!signupEnabled) {
       toast({
         title: "Signup disabled",
-        description: "Admin signup is currently disabled.",
+        description: "Admin signup is not available. An admin account already exists.",
         variant: "destructive",
       });
       return;
@@ -173,6 +195,9 @@ const AdminAuth = () => {
           });
           return;
         }
+
+        // Signup no longer available after first admin
+        setSignupEnabled(false);
 
         toast({
           title: "Admin account created!",
@@ -350,7 +375,7 @@ const AdminAuth = () => {
                     Forgot password?
                   </button>
 
-                  {ALLOW_ADMIN_SIGNUP && (
+                  {!checkingSignup && signupEnabled && (
                     <button
                       type="button"
                       onClick={() => {
@@ -367,7 +392,7 @@ const AdminAuth = () => {
               </motion.form>
             )}
 
-            {view === "signup" && ALLOW_ADMIN_SIGNUP && (
+            {view === "signup" && signupEnabled && (
               <motion.form
                 key="signup"
                 initial={{ opacity: 0, x: 20 }}
@@ -389,7 +414,7 @@ const AdminAuth = () => {
                 </button>
 
                 <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 text-sm text-primary">
-                  <strong>⚠️ Temporary Setup:</strong> After creating your admin account, set <code>ALLOW_ADMIN_SIGNUP = false</code> in AdminAuth.tsx
+                  <strong>⚠️ First Admin Setup:</strong> This option is only available because no admin accounts exist yet. After creating your account, this option will be automatically disabled.
                 </div>
 
                 <div className="space-y-2">
@@ -495,11 +520,11 @@ const AdminAuth = () => {
                 </button>
 
                 <div className="space-y-2">
-                  <Label htmlFor="reset-email">Email Address</Label>
+                  <Label htmlFor="forgot-email">Email Address</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
                     <Input
-                      id="reset-email"
+                      id="forgot-email"
                       type="email"
                       placeholder="admin@crossangle.com"
                       value={email}
@@ -512,31 +537,35 @@ const AdminAuth = () => {
                   {errors.email && (
                     <p className="text-sm text-destructive">{errors.email}</p>
                   )}
-                  <p className="text-xs text-muted-foreground">
-                    Enter your email and we'll send you a reset link.
-                  </p>
                 </div>
 
                 <Button type="submit" variant="gold" className="w-full" disabled={isLoading}>
                   {isLoading ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                      Sending...
+                      Sending reset link...
                     </>
                   ) : (
                     "Send Reset Link"
                   )}
                 </Button>
+
+                <p className="text-center text-sm text-muted-foreground">
+                  You'll receive an email with a link to reset your password.
+                </p>
               </motion.form>
             )}
           </AnimatePresence>
         </div>
 
-        <p className="text-center text-muted-foreground text-sm mt-6">
-          <a href="/" className="text-primary hover:underline">
-            ← Back to website
-          </a>
-        </p>
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.4 }}
+          className="text-center text-muted-foreground text-sm mt-6"
+        >
+          © {new Date().getFullYear()} Cross Angle Interior. All rights reserved.
+        </motion.p>
       </motion.div>
     </div>
   );
