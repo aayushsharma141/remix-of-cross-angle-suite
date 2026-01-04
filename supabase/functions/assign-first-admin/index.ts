@@ -3,6 +3,7 @@
 // Security: 
 // - If an admin already exists, only authenticated admins can assign roles.
 // - If no admin exists, allow the first authenticated user to self-assign admin.
+// - CORS is restricted to known domains (Lovable apps and localhost for development)
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
@@ -11,14 +12,41 @@ type Json = Record<string, unknown>;
 
 type Body = {
   user_id?: string;
+  check_signup_enabled?: boolean; // Optional: check if signup is available
 };
 
-const corsHeaders: Record<string, string> = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+// Get allowed origins from environment or use defaults
+const getAllowedOrigins = (): string[] => {
+  const envOrigins = Deno.env.get("ALLOWED_ORIGINS");
+  if (envOrigins) {
+    return envOrigins.split(",").map(o => o.trim());
+  }
+  return [];
+};
+
+const getCorsHeaders = (req: Request): Record<string, string> => {
+  const origin = req.headers.get("origin") || "";
+  const allowedOrigins = getAllowedOrigins();
+  
+  // Check if origin is allowed:
+  // - Lovable preview domains (*.lovable.app)
+  // - localhost for development
+  // - Explicitly allowed origins from env
+  const isAllowed = !origin || 
+    origin.endsWith(".lovable.app") || 
+    origin.includes("localhost") ||
+    origin.includes("127.0.0.1") ||
+    allowedOrigins.some(allowed => origin === allowed);
+  
+  return {
+    "Access-Control-Allow-Origin": isAllowed ? (origin || "*") : "",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  };
 };
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+  
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -29,6 +57,29 @@ serve(async (req) => {
     if (!supabaseUrl || !serviceRoleKey) {
       return new Response(JSON.stringify({ error: "Server not configured" }), {
         status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Service role client for privileged DB access
+    const adminClient = createClient(supabaseUrl, serviceRoleKey);
+
+    // Check if any admin already exists
+    const { count: adminCount, error: countError } = await adminClient
+      .from("user_roles")
+      .select("id", { count: "exact", head: true })
+      .eq("role", "admin");
+
+    if (countError) throw countError;
+
+    const body = (await req.json().catch(() => ({}))) as Body;
+    
+    // If client is just checking if signup is available, return status
+    if (body.check_signup_enabled) {
+      return new Response(JSON.stringify({ 
+        signup_enabled: (adminCount ?? 0) === 0 
+      } satisfies Json), {
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -46,7 +97,6 @@ serve(async (req) => {
       });
     }
 
-    const body = (await req.json().catch(() => ({}))) as Body;
     const requestedUserId = body.user_id;
     const callerUserId = authData.user.id;
 
@@ -56,17 +106,6 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    // Service role client for privileged DB access
-    const adminClient = createClient(supabaseUrl, serviceRoleKey);
-
-    // Is there any admin already?
-    const { count: adminCount, error: countError } = await adminClient
-      .from("user_roles")
-      .select("id", { count: "exact", head: true })
-      .eq("role", "admin");
-
-    if (countError) throw countError;
 
     // If no admins exist, only allow caller to assign themselves
     if ((adminCount ?? 0) === 0) {
@@ -100,11 +139,14 @@ serve(async (req) => {
 
     if (upsertError) throw upsertError;
 
+    console.log(`Admin role assigned to user ${requestedUserId}`);
+
     return new Response(JSON.stringify({ ok: true } satisfies Json), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (_err) {
+  } catch (err) {
+    console.error("Error in assign-first-admin:", err);
     return new Response(JSON.stringify({ error: "Internal error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
