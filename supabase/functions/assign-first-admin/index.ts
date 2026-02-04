@@ -84,13 +84,25 @@ serve(async (req) => {
       });
     }
 
-    // Authenticated client (uses user JWT from Authorization header)
-    const authClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY") ?? "", {
-      global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
+    const authHeader = req.headers.get("Authorization") ?? "";
+    if (!authHeader.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Authenticated client (verify JWT in-code; gateway verification is disabled via config.toml)
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+    const authClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
     });
 
-    const { data: authData, error: authError } = await authClient.auth.getUser();
-    if (authError || !authData?.user) {
+    const token = authHeader.replace("Bearer ", "");
+    // IMPORTANT: when gateway JWT verification is disabled, pass token explicitly.
+    const { data: authData, error: authError } = await authClient.auth.getUser(token);
+    const callerUserId = authData?.user?.id;
+    if (authError || !callerUserId) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -98,7 +110,6 @@ serve(async (req) => {
     }
 
     const requestedUserId = body.user_id;
-    const callerUserId = authData.user.id;
 
     if (!requestedUserId || typeof requestedUserId !== "string") {
       return new Response(JSON.stringify({ error: "Missing user_id" }), {
